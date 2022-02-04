@@ -1,4 +1,12 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-ethers");
+require("solidity-coverage");
+require("hardhat-deploy");
+require("hardhat-gas-reporter");
+require("hardhat-contract-sizer");
+const {removeConsoleLog} = require("hardhat-preprocessor");
+require("dotenv").config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -38,6 +46,15 @@ module.exports = {
           },
         },
       },
+      {
+        version: "0.8.0",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
     ],
   },
   networks: {
@@ -58,22 +75,22 @@ module.exports = {
         mnemonic: process.env.MNEMONIC,
       },
     },
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-      accounts: [`0x${process.env.MNEMONIC}`],
-    },
-    matic: {
-      url: "https://polygon-rpc.com/",
-      accounts: [`0x${process.env.MNEMONIC}`],
-    },
-    arbitrum: {
-      url: `https://arb1.arbitrum.io/rpc/`,
-      accounts: [`0x${process.env.MNEMONIC}`],
-    },
-    metis: {
-      url: `https://andromeda.metis.io/?owner=1088`,
-      accounts: [`0x${process.env.MNEMONIC}`],
-    },
+    // mainnet: {
+    //   url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+    //   accounts: [`0x${process.env.MNEMONIC}`],
+    // },
+    // matic: {
+    //   url: "https://polygon-rpc.com/",
+    //   accounts: [`0x${process.env.MNEMONIC}`],
+    // },
+    // arbitrum: {
+    //   url: `https://arb1.arbitrum.io/rpc/`,
+    //   accounts: [`0x${process.env.MNEMONIC}`],
+    // },
+    // metis: {
+    //   url: `https://andromeda.metis.io/?owner=1088`,
+    //   accounts: [`0x${process.env.MNEMONIC}`],
+    // },
   },
   contractSizer: {
     alphaSort: true,
@@ -82,12 +99,12 @@ module.exports = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_APIKEY,
   },
-  paths: {
-    sources: "./src",
-    tests: "./src/tests/strategies",
-    cache: "./cache",
-    artifacts: "./artifacts",
-  },
+  // paths: {
+  //   sources: "./src",
+  //   tests: "./src/tests/strategies",
+  //   cache: "./cache",
+  //   artifacts: "./artifacts",
+  // },
   namedAccounts: {
     deployer: {
       default: 0,
