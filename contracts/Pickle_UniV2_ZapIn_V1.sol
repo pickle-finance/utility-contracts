@@ -345,15 +345,6 @@ interface IERC20 {
     );
 }
 
-/**
- * @title SafeERC20
- * @dev Wrappers around ERC20 operations that throw on failure (when the token
- * contract returns false). Tokens that return no value (and instead revert or
- * throw on failure) are also supported, non-reverting calls are assumed to be
- * successful.
- * To use this library you can add a `using SafeERC20 for IERC20;` statement to your contract,
- * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
- */
 library SafeERC20 {
     using Address for address;
 
@@ -472,18 +463,6 @@ library SafeERC20 {
     }
 }
 
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
 abstract contract Ownable is Context {
     address private _owner;
 
@@ -545,29 +524,8 @@ abstract contract Ownable is Context {
 abstract contract ZapBaseV2 is Ownable {
     using SafeERC20 for IERC20;
     bool public stopped = false;
-
-    // if true, goodwill is not deducted
-    mapping(address => bool) public feeWhitelist;
-
-    uint256 public goodwill;
-    // % share of goodwill (0-100 %)
-    uint256 affiliateSplit;
-    // restrict affiliates
-    mapping(address => bool) public affiliates;
-    // affiliate => token => amount
-    mapping(address => mapping(address => uint256)) public affiliateBalance;
-    // token => amount
-    mapping(address => uint256) public totalAffiliateBalance;
     // swapTarget => approval status
     mapping(address => bool) public approvedTargets;
-
-    address internal constant ETHAddress =
-        0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
-    constructor(uint256 _goodwill, uint256 _affiliateSplit) {
-        goodwill = _goodwill;
-        affiliateSplit = _affiliateSplit;
-    }
 
     // circuit breaker modifiers
     modifier stopInEmergency {
@@ -613,75 +571,6 @@ abstract contract ZapBaseV2 is Ownable {
         stopped = !stopped;
     }
 
-    function set_feeWhitelist(address zapAddress, bool status)
-        external
-        onlyOwner
-    {
-        feeWhitelist[zapAddress] = status;
-    }
-
-    function set_new_goodwill(uint256 _new_goodwill) public onlyOwner {
-        require(
-            _new_goodwill >= 0 && _new_goodwill <= 100,
-            "GoodWill Value not allowed"
-        );
-        goodwill = _new_goodwill;
-    }
-
-    function set_new_affiliateSplit(uint256 _new_affiliateSplit)
-        external
-        onlyOwner
-    {
-        require(
-            _new_affiliateSplit <= 100,
-            "Affiliate Split Value not allowed"
-        );
-        affiliateSplit = _new_affiliateSplit;
-    }
-
-    function set_affiliate(address _affiliate, bool _status)
-        external
-        onlyOwner
-    {
-        affiliates[_affiliate] = _status;
-    }
-
-    ///@notice Withdraw goodwill share, retaining affilliate share
-    function withdrawTokens(address[] calldata tokens) external onlyOwner {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 qty;
-
-            if (tokens[i] == ETHAddress) {
-                qty = address(this).balance - totalAffiliateBalance[tokens[i]];
-
-                Address.sendValue(payable(owner()), qty);
-            } else {
-                qty =
-                    IERC20(tokens[i]).balanceOf(address(this)) -
-                    totalAffiliateBalance[tokens[i]];
-                IERC20(tokens[i]).safeTransfer(owner(), qty);
-            }
-        }
-    }
-
-    ///@notice Withdraw affilliate share, retaining goodwill share
-    function affilliateWithdraw(address[] calldata tokens) external {
-        uint256 tokenBal;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenBal = affiliateBalance[msg.sender][tokens[i]];
-            affiliateBalance[msg.sender][tokens[i]] = 0;
-            totalAffiliateBalance[tokens[i]] =
-                totalAffiliateBalance[tokens[i]] -
-                tokenBal;
-
-            if (tokens[i] == ETHAddress) {
-                Address.sendValue(payable(msg.sender), tokenBal);
-            } else {
-                IERC20(tokens[i]).safeTransfer(msg.sender, tokenBal);
-            }
-        }
-    }
-
     function setApprovedTargets(
         address[] calldata targets,
         bool[] calldata isApproved
@@ -698,84 +587,6 @@ abstract contract ZapBaseV2 is Ownable {
     }
 }
 
-abstract contract ZapInBaseV3 is ZapBaseV2 {
-    using SafeERC20 for IERC20;
-
-    function _pullTokens(
-        address token,
-        uint256 amount,
-        address affiliate,
-        bool enableGoodwill,
-        bool shouldSellEntireBalance
-    ) internal returns (uint256 value) {
-        uint256 totalGoodwillPortion;
-
-        if (token == address(0)) {
-            require(msg.value > 0, "No eth sent");
-
-            // subtract goodwill
-            totalGoodwillPortion = _subtractGoodwill(
-                ETHAddress,
-                msg.value,
-                affiliate,
-                enableGoodwill
-            );
-
-            return msg.value - totalGoodwillPortion;
-        }
-        require(amount > 0, "Invalid token amount");
-        require(msg.value == 0, "Eth sent with token");
-
-        //transfer token
-        if (shouldSellEntireBalance) {
-            require(
-                Address.isContract(msg.sender),
-                "ERR: shouldSellEntireBalance is true for EOA"
-            );
-            amount = IERC20(token).allowance(msg.sender, address(this));
-        }
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-
-        // subtract goodwill
-        totalGoodwillPortion = _subtractGoodwill(
-            token,
-            amount,
-            affiliate,
-            enableGoodwill
-        );
-
-        return amount - totalGoodwillPortion;
-    }
-
-    function _subtractGoodwill(
-        address token,
-        uint256 amount,
-        address affiliate,
-        bool enableGoodwill
-    ) internal returns (uint256 totalGoodwillPortion) {
-        bool whitelisted = feeWhitelist[msg.sender];
-        if (enableGoodwill && !whitelisted && goodwill > 0) {
-            totalGoodwillPortion = (amount * goodwill) / 10000;
-
-            if (affiliates[affiliate]) {
-                if (token == address(0)) {
-                    token = ETHAddress;
-                }
-
-                uint256 affiliatePortion =
-                    (totalGoodwillPortion * affiliateSplit) / 100;
-                affiliateBalance[affiliate][token] =
-                    affiliateBalance[affiliate][token] +
-                    affiliatePortion;
-                totalAffiliateBalance[token] =
-                    totalAffiliateBalance[token] +
-                    affiliatePortion;
-            }
-        }
-    }
-}
-
-// import "@uniswap/lib/contracts/libraries/Babylonian.sol";
 library Babylonian {
     function sqrt(uint256 y) internal pure returns (uint256 z) {
         if (y > 3) {
@@ -1032,26 +843,16 @@ interface IPickleJar {
     function deposit(uint256 amount) external;
 }
 
-contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
+contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     using SafeERC20 for IERC20;
-
-    IUniswapV2Factory private constant UniSwapV2FactoryAddress =
-        IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
-
-    IUniswapV2Router02 private constant uniswapRouter =
-        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
-
-    address private constant wethTokenAddress =
-        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint256 private constant deadline =
         0xf000000000000000000000000000000000000000000000000000000000000000;
 
-    constructor(uint256 _goodwill, uint256 _affiliateSplit)
-        ZapBaseV2(_goodwill, _affiliateSplit)
+    constructor(address _swapTarget)
     {
-        // 0x exchange
-        approvedTargets[0xDef1C0ded9bec7F1a1670819833240f027b25EfF] = true;
+        // Uniswap Router exchange
+        approvedTargets[_swapTarget] = true;
     }
 
     event zapIn(address sender, address pool, uint256 tokensRec);
@@ -1076,7 +877,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         uint256 _minPJarTokens,
         address _swapTarget,
         bytes calldata swapData,
-        bool transferResidual
+        bool transferResidual,
+        address _uniswapRouter
     ) external payable stopInEmergency returns (uint256 tokensReceived) {
         uint256 LPBought =
             _performZapIn(
@@ -1085,7 +887,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
                 _amount,
                 _swapTarget,
                 swapData,
-                transferResidual
+                transferResidual,
+                _uniswapRouter
             );
 
         tokensReceived = _vaultDeposit(LPBought, _toPJar, _minPJarTokens);
@@ -1125,7 +928,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         uint256 _amount,
         address _swapTarget,
         bytes memory swapData,
-        bool transferResidual
+        bool transferResidual,
+        address _uniswapRouter
     ) internal returns (uint256) {
         uint256 intermediateAmt;
         address intermediateToken;
@@ -1142,7 +946,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
                 _pairAddress,
                 _amount,
                 _swapTarget,
-                swapData
+                swapData,
+                _uniswapRouter
             );
         } else {
             intermediateToken = _FromTokenContractAddress;
@@ -1155,7 +960,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
                 intermediateToken,
                 _ToUniswapToken0,
                 _ToUniswapToken1,
-                intermediateAmt
+                intermediateAmt,
+                _uniswapRouter
             );
 
         return
@@ -1164,7 +970,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
                 _ToUniswapToken1,
                 token0Bought,
                 token1Bought,
-                transferResidual
+                transferResidual,
+                _uniswapRouter
             );
     }
 
@@ -1173,13 +980,14 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         address _ToUnipoolToken1,
         uint256 token0Bought,
         uint256 token1Bought,
-        bool transferResidual
+        bool transferResidual,
+        address _uniswapRouter
     ) internal returns (uint256) {
-        _approveToken(_ToUnipoolToken0, address(uniswapRouter), token0Bought);
-        _approveToken(_ToUnipoolToken1, address(uniswapRouter), token1Bought);
+        _approveToken(_ToUnipoolToken0, _uniswapRouter, token0Bought);
+        _approveToken(_ToUnipoolToken1, _uniswapRouter, token1Bought);
 
         (uint256 amountA, uint256 amountB, uint256 LP) =
-            uniswapRouter.addLiquidity(
+            IUniswapV2Router02(_uniswapRouter).addLiquidity(
                 _ToUnipoolToken0,
                 _ToUnipoolToken1,
                 token0Bought,
@@ -1216,8 +1024,10 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         address _pairAddress,
         uint256 _amount,
         address _swapTarget,
-        bytes memory swapData
+        bytes memory swapData,
+        address _uniswapRouter
     ) internal returns (uint256 amountBought, address intermediateToken) {
+        address wethTokenAddress = IUniswapV2Router02(_uniswapRouter).WETH();
         if (_swapTarget == wethTokenAddress) {
             IWETH(wethTokenAddress).deposit{ value: _amount }();
             return (_amount, wethTokenAddress);
@@ -1260,11 +1070,16 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         address _toContractAddress,
         address _ToUnipoolToken0,
         address _ToUnipoolToken1,
-        uint256 _amount
+        uint256 _amount,
+        address _uniswapRouter
     ) internal returns (uint256 token0Bought, uint256 token1Bought) {
+        IUniswapV2Factory uniV2Factory = IUniswapV2Factory(
+            IUniswapV2Router02(_uniswapRouter).factory()
+        );
+
         IUniswapV2Pair pair =
             IUniswapV2Pair(
-                UniSwapV2FactoryAddress.getPair(
+                uniV2Factory.getPair(
                     _ToUnipoolToken0,
                     _ToUnipoolToken1
                 )
@@ -1277,7 +1092,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
             token1Bought = _token2Token(
                 _toContractAddress,
                 _ToUnipoolToken1,
-                amountToSwap
+                amountToSwap,
+                _uniswapRouter,
+                uniV2Factory
             );
             token0Bought = _amount - amountToSwap;
         } else {
@@ -1287,7 +1104,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
             token0Bought = _token2Token(
                 _toContractAddress,
                 _ToUnipoolToken0,
-                amountToSwap
+                amountToSwap,
+                _uniswapRouter,
+                uniV2Factory
             );
             token1Bought = _amount - amountToSwap;
         }
@@ -1314,7 +1133,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
     function _token2Token(
         address _FromTokenContractAddress,
         address _ToTokenContractAddress,
-        uint256 tokens2Trade
+        uint256 tokens2Trade,
+        address _uniswapRouter,
+        IUniswapV2Factory uniV2Factory
     ) internal returns (uint256 tokenBought) {
         if (_FromTokenContractAddress == _ToTokenContractAddress) {
             return tokens2Trade;
@@ -1322,12 +1143,12 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
 
         _approveToken(
             _FromTokenContractAddress,
-            address(uniswapRouter),
+            _uniswapRouter,
             tokens2Trade
         );
 
         address pair =
-            UniSwapV2FactoryAddress.getPair(
+            uniV2Factory.getPair(
                 _FromTokenContractAddress,
                 _ToTokenContractAddress
             );
@@ -1336,7 +1157,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapInBaseV3 {
         path[0] = _FromTokenContractAddress;
         path[1] = _ToTokenContractAddress;
 
-        tokenBought = uniswapRouter.swapExactTokensForTokens(
+        tokenBought = IUniswapV2Router02(_uniswapRouter).swapExactTokensForTokens(
             tokens2Trade,
             1,
             path,
