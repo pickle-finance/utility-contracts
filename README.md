@@ -1,6 +1,6 @@
 # Utility Contracts
 
-This project includes utitlity smart contracts for Pickle infrastructure.
+This project includes utility smart contracts for Pickle infrastructure.
 
 Compile contracts:
 
