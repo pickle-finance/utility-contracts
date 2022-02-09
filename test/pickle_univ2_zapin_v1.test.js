@@ -1,4 +1,4 @@
-const {expect, deployContract, increaseTime, getContractAt, getBalance, increaseBlock} = require("./utils/testHelper");
+const {expect, deployContract, getContractAt, getBalance} = require("./utils/testHelper");
 const Ethers = require("ethers");
 const hre = require("hardhat");
 const { ethers } = require("hardhat");

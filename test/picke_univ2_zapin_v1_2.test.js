@@ -1,10 +1,8 @@
 const {
   expect,
   deployContract,
-  increaseTime,
   getContractAt,
   getBalance,
-  increaseBlock,
 } = require("./utils/testHelper");
 const Ethers = require("ethers");
 const hre = require("hardhat");
@@ -22,7 +20,7 @@ describe("UniZapIn", function () {
       "contracts/Pickle_UniV2_ZapIn_V1.sol:Pickle_UniV2_ZapIn_V1",
       UNI_ROUTER
     );
-    console.log("pickleUniZap deployed at : ", pickleUniZap.address);
+    console.log("✅ pickleUniZap deployed at: ", pickleUniZap.address);
   });
 
   it("Should zapin successfully (eth --> looks/weth)", async function () {
@@ -258,6 +256,5 @@ describe("UniZapIn", function () {
     const pJarBalanceFinal = await pJarContract.balanceOf(alice.address);
     console.log("Alice's Final pJar balance : ", pJarBalanceFinal);
     console.log("pTokensReceived : ", tokensReceived);
-    const balanceDiff = pJarBalanceFinal - pJarBalanceInitial;
   });
 });

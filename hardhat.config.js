@@ -25,7 +25,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  defaultNetwork: "local",
+  defaultNetwork: "hardhat",
   solidity: {
     compilers: [
       {
@@ -58,39 +58,39 @@ module.exports = {
     ],
   },
   networks: {
-    // hardhat: {
-    //   forking: {
-    //     url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-    //   },
-    //   accounts: {
-    //     mnemonic: process.env.MNEMONIC,
-    //   },
-    //   hardfork: "istanbul",
-    //   gasPrice: "auto",
-    //   gas: 2500000,
-    // },
+    hardhat: {
+      forking: {
+        url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      },
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      },
+      hardfork: "istanbul",
+      gasPrice: "auto",
+      gas: 2500000,
+    },
     local: {
       url: `http://localhost:8545`,
       accounts: {
-        mnemonic: '5a9fc76a6b437509ef86f4d791fe257fdf5b3a059259030c6e0c7adc988c8c59',
+        mnemonic: process.env.MNEMONIC,
       },
     },
-    // mainnet: {
-    //   url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-    //   accounts: [`0x${process.env.PRIVATE_KEY}`],
-    // },
-    // matic: {
-    //   url: "https://polygon-rpc.com/",
-    //   accounts: [`0x${process.env.PRIVATE_KEY}`],
-    // },
-    // arbitrum: {
-    //   url: `https://arb1.arbitrum.io/rpc/`,
-    //   accounts: [`0x${process.env.PRIVATE_KEY}`],
-    // },
-    // metis: {
-    //   url: `https://andromeda.metis.io/?owner=1088`,
-    //   accounts: [`0x${process.env.PRIVATE_KEY}`],
-    // },
+    mainnet: {
+      url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
+    matic: {
+      url: "https://polygon-rpc.com/",
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
+    arbitrum: {
+      url: `https://arb1.arbitrum.io/rpc/`,
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
+    metis: {
+      url: `https://andromeda.metis.io/?owner=1088`,
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
   },
   contractSizer: {
     alphaSort: true,
