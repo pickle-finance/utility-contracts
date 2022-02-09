@@ -19,7 +19,6 @@ interface IPickleJar {
     function deposit(uint256 amount) external;
 }
 
-
 abstract contract ZapBaseV2 is Ownable {
     using SafeERC20 for IERC20;
     bool public stopped = false;
@@ -27,7 +26,7 @@ abstract contract ZapBaseV2 is Ownable {
     mapping(address => bool) public approvedTargets;
 
     // circuit breaker modifiers
-    modifier stopInEmergency {
+    modifier stopInEmergency() {
         if (stopped) {
             revert("Temporarily Paused");
         } else {
@@ -86,7 +85,6 @@ abstract contract ZapBaseV2 is Ownable {
     }
 }
 
-
 contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     using SafeERC20 for IERC20;
 
@@ -110,9 +108,10 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     @param _toPJar Pickle vault address
     @param _minPJarTokens The minimum acceptable quantity vault tokens to receive. Reverts otherwise
     @param _swapTarget Excecution target for the first swap
-    @param swapData DEX quote data
-    @param transferResidual Set false to save gas by donating the residual remaining after a Zap
+    @param _swapData DEX quote data
+    @param _transferResidual Set false to save gas by donating the residual remaining after a Zap
     @param _uniswapRouter Protocol's uniswap router address
+    @param _shouldSellEntireBalance Checks the total allowance of input token to zapin instead of the _amount, if true
     @return tokensReceived Quantity of Vault tokens received
      */
     function ZapIn(
@@ -122,22 +121,50 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         address _toPJar,
         uint256 _minPJarTokens,
         address _swapTarget,
-        bytes calldata swapData,
-        bool transferResidual,
-        address _uniswapRouter
+        bytes calldata _swapData,
+        bool _transferResidual,
+        address _uniswapRouter,
+        bool _shouldSellEntireBalance
     ) external payable stopInEmergency returns (uint256 tokensReceived) {
-        uint256 LPBought =
-            _performZapIn(
-                _FromTokenContractAddress,
-                _pairAddress,
-                _amount,
-                _swapTarget,
-                swapData,
-                transferResidual,
-                _uniswapRouter
-            );
+        uint256 _toInvest = _pullTokens(
+            _FromTokenContractAddress,
+            _amount,
+            _shouldSellEntireBalance
+        );
+
+        uint256 LPBought = _performZapIn(
+            _FromTokenContractAddress,
+            _pairAddress,
+            _toInvest,
+            _swapTarget,
+            _swapData,
+            _transferResidual,
+            _uniswapRouter
+        );
 
         tokensReceived = _vaultDeposit(LPBought, _toPJar, _minPJarTokens);
+    }
+
+    function _pullTokens(
+        address _from,
+        uint256 _amount,
+        bool _shouldSellEntireBalance
+    ) internal returns (uint256) {
+        if (_from != address(0)) {
+            require(_amount > 0, "Invalid token amount");
+            require(msg.value == 0, "Eth sent with token");
+
+            //transfer token
+            if (_shouldSellEntireBalance) {
+                require(
+                    Address.isContract(msg.sender),
+                    "ERR: shouldSellEntireBalance is true for EOA"
+                );
+                _amount = IERC20(_from).allowance(msg.sender, address(this));
+            }
+            IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+        }
+        return _amount;
     }
 
     function _vaultDeposit(
@@ -151,7 +178,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
         uint256 iniYVaultBal = IERC20(toVault).balanceOf(address(this));
         IPickleJar(toVault).deposit(amount);
-        tokensReceived = IERC20(toVault).balanceOf(address(this)) - iniYVaultBal;
+        tokensReceived =
+            IERC20(toVault).balanceOf(address(this)) -
+            iniYVaultBal;
         require(tokensReceived >= minTokensRec, "Err: High Slippage");
 
         IERC20(toVault).safeTransfer(msg.sender, tokensReceived);
@@ -179,8 +208,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     ) internal returns (uint256) {
         uint256 intermediateAmt;
         address intermediateToken;
-        (address _ToUniswapToken0, address _ToUniswapToken1) =
-            _getPairTokens(_pairAddress);
+        (address _ToUniswapToken0, address _ToUniswapToken1) = _getPairTokens(
+            _pairAddress
+        );
 
         if (
             _FromTokenContractAddress != _ToUniswapToken0 &&
@@ -201,14 +231,13 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         }
 
         // divide intermediate into appropriate amount to add liquidity
-        (uint256 token0Bought, uint256 token1Bought) =
-            _swapIntermediate(
-                intermediateToken,
-                _ToUniswapToken0,
-                _ToUniswapToken1,
-                intermediateAmt,
-                _uniswapRouter
-            );
+        (uint256 token0Bought, uint256 token1Bought) = _swapIntermediate(
+            intermediateToken,
+            _ToUniswapToken0,
+            _ToUniswapToken1,
+            intermediateAmt,
+            _uniswapRouter
+        );
 
         return
             _uniDeposit(
@@ -232,8 +261,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         _approveToken(_ToUnipoolToken0, _uniswapRouter, token0Bought);
         _approveToken(_ToUnipoolToken1, _uniswapRouter, token1Bought);
 
-        (uint256 amountA, uint256 amountB, uint256 LP) =
-            IUniswapV2Router02(_uniswapRouter).addLiquidity(
+        (uint256 amountA, uint256 amountB, uint256 LP) = IUniswapV2Router02(
+            _uniswapRouter
+        ).addLiquidity(
                 _ToUnipoolToken0,
                 _ToUnipoolToken1,
                 token0Bought,
@@ -295,13 +325,13 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         uint256 initialBalance1 = token1.balanceOf(address(this));
 
         require(approvedTargets[_swapTarget], "Target not Authorized");
-        (bool success, ) = _swapTarget.call{ value: valueToSend }(swapData);
+        (bool success, ) = _swapTarget.call{value: valueToSend}(swapData);
         require(success, "Error Swapping Tokens 1");
 
-        uint256 finalBalance0 =
-            token0.balanceOf(address(this)) - initialBalance0;
-        uint256 finalBalance1 =
-            token1.balanceOf(address(this)) - initialBalance1;
+        uint256 finalBalance0 = token0.balanceOf(address(this)) -
+            initialBalance0;
+        uint256 finalBalance1 = token1.balanceOf(address(this)) -
+            initialBalance1;
 
         if (finalBalance0 > finalBalance1) {
             amountBought = finalBalance0;
@@ -325,13 +355,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
             IUniswapV2Router02(_uniswapRouter).factory()
         );
 
-        IUniswapV2Pair pair =
-            IUniswapV2Pair(
-                uniV2Factory.getPair(
-                    _ToUnipoolToken0,
-                    _ToUnipoolToken1
-                )
-            );
+        IUniswapV2Pair pair = IUniswapV2Pair(
+            uniV2Factory.getPair(_ToUnipoolToken0, _ToUnipoolToken1)
+        );
         (uint256 res0, uint256 res1, ) = pair.getReserves();
         if (_toContractAddress == _ToUnipoolToken0) {
             uint256 amountToSwap = calculateSwapInAmount(res0, _amount);
@@ -389,29 +415,25 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
             return tokens2Trade;
         }
 
-        _approveToken(
-            _FromTokenContractAddress,
-            _uniswapRouter,
-            tokens2Trade
-        );
+        _approveToken(_FromTokenContractAddress, _uniswapRouter, tokens2Trade);
 
-        address pair =
-            uniV2Factory.getPair(
-                _FromTokenContractAddress,
-                _ToTokenContractAddress
-            );
+        address pair = uniV2Factory.getPair(
+            _FromTokenContractAddress,
+            _ToTokenContractAddress
+        );
         require(pair != address(0), "No Swap Available");
         address[] memory path = new address[](2);
         path[0] = _FromTokenContractAddress;
         path[1] = _ToTokenContractAddress;
 
-        tokenBought = IUniswapV2Router02(_uniswapRouter).swapExactTokensForTokens(
-            tokens2Trade,
-            1,
-            path,
-            address(this),
-            deadline
-        )[path.length - 1];
+        tokenBought = IUniswapV2Router02(_uniswapRouter)
+            .swapExactTokensForTokens(
+                tokens2Trade,
+                1,
+                path,
+                address(this),
+                deadline
+            )[path.length - 1];
 
         require(tokenBought > 0, "Error Swapping Tokens 2");
     }
