@@ -12,7 +12,7 @@ let pickleUniZap;
 describe("UniLPZapin native currency", function () {
   before("Setup", async function () {
     pickleUniZap = await deployContract("contracts/Pickle_UniV2_ZapIn_V1.sol:Pickle_UniV2_ZapIn_V1",
-      UNI_ROUTER
+      [UNI_ROUTER]
     );
     console.log("✅ pickleUniZap is deployed at ", pickleUniZap.address);
   })
