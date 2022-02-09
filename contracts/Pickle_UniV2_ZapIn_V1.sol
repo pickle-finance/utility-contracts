@@ -91,12 +91,14 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     uint256 private constant deadline =
         0xf000000000000000000000000000000000000000000000000000000000000000;
 
-    constructor(address _swapTarget) {
-        // Uniswap Router exchange
-        approvedTargets[_swapTarget] = true;
+    constructor(address[] memory targets)
+    {
+        for (uint256 i = 0; i < targets.length; i++) {
+            approvedTargets[targets[i]] = true;
+        }
     }
 
-    event zapIn(address sender, address pool, uint256 tokensRec);
+    event zapIn(address sender, address jar, uint256 tokensRec);
 
     /**
     @notice This function is used to invest in given Uniswap V2 pair through ETH/ERC20 Tokens
@@ -108,6 +110,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     @param _swapTarget Excecution target for the first swap
     @param _swapData DEX quote data
     @param _transferResidual Set false to save gas by donating the residual remaining after a Zap
+    @param _uniswapRouter Protocol's uniswap router address
     @param _shouldSellEntireBalance Checks the total allowance of input token to zapin instead of the _amount, if true
     @return tokensReceived Quantity of Vault tokens received
      */
@@ -302,12 +305,14 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     ) internal returns (uint256 amountBought, address intermediateToken) {
         address wethTokenAddress = IUniswapV2Router02(_uniswapRouter).WETH();
         if (_swapTarget == wethTokenAddress) {
-            IWETH(wethTokenAddress).deposit{value: _amount}();
+            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
+            IWETH(wethTokenAddress).deposit{ value: _amount }();
             return (_amount, wethTokenAddress);
         }
 
         uint256 valueToSend;
         if (_fromTokenAddress == address(0)) {
+            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
             valueToSend = _amount;
         } else {
             _approveToken(_fromTokenAddress, _swapTarget, _amount);
