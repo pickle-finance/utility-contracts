@@ -39,6 +39,7 @@ describe("UniLPZapin native currency", function () {
       ZERO_ADDRESS,
       true,
       UNI_ROUTER,
+      false,
       {
         from: alice.address,
         value: BN.from(10).pow(18)
@@ -80,6 +81,7 @@ describe("UniLPZapin native currency", function () {
       swapData.data,
       true,
       UNI_ROUTER,
+      false,
       {
         from: alice.address,
         value: BN.from(10).pow(18)

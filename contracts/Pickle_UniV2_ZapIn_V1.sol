@@ -122,13 +122,16 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         address _swapTarget,
         bytes calldata swapData,
         bool transferResidual,
-        address _uniswapRouter
+        address _uniswapRouter,
+        bool _shoulSellEntireBalance
     ) external payable stopInEmergency returns (uint256 tokensReceived) {
+        //pull token
+        uint256 _toInvest = _pullTokens(_FromTokenContractAddress, _amount, _shoulSellEntireBalance);
         uint256 LPBought =
             _performZapIn(
                 _FromTokenContractAddress,
                 _pairAddress,
-                _amount,
+                _toInvest,
                 _swapTarget,
                 swapData,
                 transferResidual,
@@ -137,7 +140,24 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
         tokensReceived = _vaultDeposit(LPBought, _toPJar, _minPJarTokens);
     }
+    function _pullTokens(address _from, uint256 _amount, bool _shouldSellEntireBalance) internal returns(uint256) {
+          if (_from != address(0)) {
+      
+        require(_amount > 0, "Invalid token amount");
+        require(msg.value == 0, "Eth sent with token");
 
+        //transfer token
+        if (_shouldSellEntireBalance) {
+            require(
+                Address.isContract(msg.sender),
+                "ERR: shouldSellEntireBalance is true for EOA"
+            );
+            _amount = IERC20(_from).allowance(msg.sender, address(this));
+        }
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+       }
+       return _amount;
+    }
     function _vaultDeposit(
         uint256 amount,
         address toVault,
