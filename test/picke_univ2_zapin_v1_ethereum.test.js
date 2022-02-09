@@ -28,21 +28,21 @@ describe("UniZapIn", function () {
     const pairContract = await getContractAt("ERC20", pairAddress);
     const signers = await hre.ethers.getSigners();
     alice = signers[0];
-    const pUNILOOKSETH = "0x69CC22B240bdcDf4A33c7B3D04a660D4cF714370";
-
-    const initialLPBalance = await pairContract.balanceOf(pickleUniZap.address);
+    const pJar = "0x69CC22B240bdcDf4A33c7B3D04a660D4cF714370";
+    const pJarContract = await getContractAt("ERC20",pJar);
+    const pJarBalanceInitial = await pJarContract.balanceOf(alice.address);
     const initialAliceBalance = await getBalance(alice.address);
 
-    console.log("initial LP balance : ", initialLPBalance);
+    console.log("Alice's initial pJar balance : ", pJarBalanceInitial);
     console.log("Alice's initial balance : ", initialAliceBalance);
 
     const tx = await pickleUniZap
       .connect(alice)
       .ZapIn(
         ZERO_ADDRESS,
-        Ethers.BigNumber.from(10).pow(18),
+        BN.from(10).pow(18),
         pairAddress,
-        pUNILOOKSETH,
+        pJar,
         0,
         WETH,
         ZERO_ADDRESS,
@@ -50,7 +50,7 @@ describe("UniZapIn", function () {
         UNI_ROUTER,
         false,
         {
-          value: Ethers.BigNumber.from(10).pow(18),
+          value: BN.from(10).pow(18),
         }
       );
     const txData = await tx.wait();
@@ -58,8 +58,10 @@ describe("UniZapIn", function () {
       (event) => event.event === "zapIn"
     ).args.tokensRec;
     const finalAliceBalance = await getBalance(alice.address);
+    const pJarBalanceFinal = await pJarContract.balanceOf(alice.address);
     console.log("Alice's final balance : ", finalAliceBalance);
     console.log("pTokens received : ", tokensReceived);
+    expect(tokensReceived).equal(BN.from(pJarBalanceFinal).sub(BN.from(pJarBalanceInitial)));
   });
 
   it("Should zapin successfully (eth --> mqqq/ust)", async function () {
@@ -86,7 +88,7 @@ describe("UniZapIn", function () {
       .connect(alice)
       .ZapIn(
         ZERO_ADDRESS,
-        Ethers.BigNumber.from(10).pow(18),
+        BN.from(10).pow(18),
         pairAddress,
         pJar,
         0,
@@ -96,7 +98,7 @@ describe("UniZapIn", function () {
         UNI_ROUTER,
         false,
         {
-          value: Ethers.BigNumber.from(10).pow(18),
+          value: BN.from(10).pow(18),
         }
       );
     const txData = await tx.wait();
@@ -108,7 +110,7 @@ describe("UniZapIn", function () {
     console.log("Alice's Final pJar balance", pJarBalanceFinal);
     console.log("Final alice balance", await getBalance(alice.address));
     console.log("pTokensReceived", tokensReceived);
-    const balanceDiff = pJarBalanceFinal - pJarBalanceInitial;
+    expect(tokensReceived).equal(BN.from(pJarBalanceFinal).sub(BN.from(pJarBalanceInitial)));
   });
 
   it("Should zapin successfully (dai --> mqqq/ust)", async function () {
@@ -135,7 +137,7 @@ describe("UniZapIn", function () {
       alice.address,
       7955575163,
       {
-        value: Ethers.BigNumber.from(10).pow(18),
+        value: BN.from(10).pow(18),
       }
     );
 
@@ -182,7 +184,7 @@ describe("UniZapIn", function () {
     const pJarBalanceFinal = await pJarContract.balanceOf(alice.address);
     console.log("Alice's Final pJar balance : ", pJarBalanceFinal);
     console.log("pTokensReceived : ", tokensReceived);
-    const balanceDiff = pJarBalanceFinal - pJarBalanceInitial;
+    expect(tokensReceived).equal(BN.from(pJarBalanceFinal).sub(BN.from(pJarBalanceInitial)));
   });
 
   it("Should zapin successfully (USDT --> mqqq/ust)", async function () {
@@ -209,7 +211,7 @@ describe("UniZapIn", function () {
       alice.address,
       7955575163,
       {
-        value: Ethers.BigNumber.from(10).pow(18),
+        value: BN.from(10).pow(18),
       }
     );
 
@@ -256,5 +258,6 @@ describe("UniZapIn", function () {
     const pJarBalanceFinal = await pJarContract.balanceOf(alice.address);
     console.log("Alice's Final pJar balance : ", pJarBalanceFinal);
     console.log("pTokensReceived : ", tokensReceived);
+    expect(tokensReceived).equal(BN.from(pJarBalanceFinal).sub(BN.from(pJarBalanceInitial)));
   });
 });
