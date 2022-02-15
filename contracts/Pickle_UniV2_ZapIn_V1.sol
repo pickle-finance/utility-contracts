@@ -91,11 +91,15 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
     uint256 private constant deadline =
         0xf000000000000000000000000000000000000000000000000000000000000000;
 
-    constructor(address[] memory targets)
+    address public wethTokenAddress;
+
+    constructor(address[] memory targets, address wnative)
     {
         for (uint256 i = 0; i < targets.length; i++) {
             approvedTargets[targets[i]] = true;
         }
+
+        wethTokenAddress = wnative;
     }
 
     event zapIn(address sender, address jar, uint256 tokensRec);
@@ -222,8 +226,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
                 _pairAddress,
                 _amount,
                 _swapTarget,
-                swapData,
-                _uniswapRouter
+                swapData
             );
         } else {
             intermediateToken = _FromTokenContractAddress;
@@ -300,10 +303,8 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         address _pairAddress,
         uint256 _amount,
         address _swapTarget,
-        bytes memory swapData,
-        address _uniswapRouter
+        bytes memory swapData
     ) internal returns (uint256 amountBought, address intermediateToken) {
-        address wethTokenAddress = IUniswapV2Router02(_uniswapRouter).WETH();
         if (_swapTarget == wethTokenAddress) {
             require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
             IWETH(wethTokenAddress).deposit{ value: _amount }();

@@ -15,7 +15,8 @@ describe("UniZapIn", function () {
   before("deploying contract :::: ", async function () {
     pickleUniZap = await deployContract(
       "contracts/Pickle_UniV2_ZapIn_V1.sol:Pickle_UniV2_ZapIn_V1",
-      [BEAM_ROUTER]
+      [BEAM_ROUTER],
+      WGLMR
     );
     console.log("✅ pickleUniZap deployed at: ", pickleUniZap.address);
   });
