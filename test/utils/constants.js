@@ -8,6 +8,9 @@ const BEAM_ROUTER = "0x96b244391D98B62D19aE89b1A4dCcf0fc56970C7";
 const WGLMR = "0xacc15dc74880c9944775448304b263d191c6077f";
 const moonETH = "0xfa9343c3897324496a05fc75abed6bac29f8a40f";
 const moonUSDC = "0x818ec0a7fe18ff94269904fced6ae3dae6d6dc0b";
+const WFTM = "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83";
+const SOLIDLY_ROUTER = "0xa38cd27185a464914D3046f0AB9d43356B34829D";
+
 
 module.exports = {
   UNI_ROUTER,
@@ -20,4 +23,6 @@ module.exports = {
   WGLMR,
   moonETH,
   moonUSDC,
+  WFTM,
+  SOLIDLY_ROUTER
 };
