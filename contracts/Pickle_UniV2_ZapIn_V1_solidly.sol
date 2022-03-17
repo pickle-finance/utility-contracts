@@ -286,7 +286,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
         if (transferResidual) {
             //Returning Residue in token0, if any.
-            if (token0Bought - amountA > 0) {
+            if (token0Bought - amountA > 0  && IERC20(_ToSolidlyPoolToken0).balanceOf(address(this)) >= token0Bought - amountA) {
                 IERC20(_ToSolidlyPoolToken0).safeTransfer(
                     msg.sender,
                     token0Bought - amountA
@@ -294,7 +294,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
             }
 
             //Returning Residue in token1, if any
-            if (token1Bought - amountB > 0) {
+            if (token1Bought - amountB > 0 && IERC20(_ToSolidlyPoolToken0).balanceOf(address(this)) >= token1Bought - amountB) {
                 IERC20(_ToSolidlyPoolToken1).safeTransfer(
                     msg.sender,
                     token1Bought - amountB
