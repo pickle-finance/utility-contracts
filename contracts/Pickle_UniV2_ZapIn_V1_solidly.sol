@@ -448,7 +448,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
                 path,
                 address(this),
                 deadline
-            )[path.length - 1];
+            )[path.length];
 
         require(tokenBought > 0, "Error Swapping Tokens 2");
     }
