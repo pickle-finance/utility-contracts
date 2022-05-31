@@ -1,6 +1,6 @@
 ///@author Pickle
 ///@notice This contract adds liquidity to solidily pools using FTM or any ERC20 Token and then adds this lp token to desired jar in a single txn.
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.0;
 
@@ -12,7 +12,6 @@ import "@uniswap/lib/contracts/libraries/Babylonian.sol";
 import "./lib/solidly/IBaseV1Pair.sol";
 import "./lib/solidly/IBaseV1Factory.sol";
 import "./lib/solidly/IBaseV1Router01.sol";
-
 
 interface IPickleJar {
     function token() external view returns (address);
@@ -94,8 +93,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
     address public wethTokenAddress;
 
-    constructor(address[] memory targets, address wnative)
-    {
+    constructor(address[] memory targets, address wnative) {
         for (uint256 i = 0; i < targets.length; i++) {
             approvedTargets[targets[i]] = true;
         }
@@ -286,7 +284,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
         if (transferResidual) {
             //Returning Residue in token0, if any.
-            uint256 memory balToken0 = IERC20(_ToSolidlyPoolToken0).balanceOf(address(this));
+            uint256 memory balToken0 = IERC20(_ToSolidlyPoolToken0).balanceOf(
+                address(this)
+            );
             if (baltoken0 > 0) {
                 IERC20(_ToSolidlyPoolToken0).safeTransfer(
                     msg.sender,
@@ -295,7 +295,9 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
             }
 
             //Returning Residue in token1, if any
-            uint256 memory balToken1 = IERC20(_ToSolidlyPoolToken1).balanceOf(address(this));
+            uint256 memory balToken1 = IERC20(_ToSolidlyPoolToken1).balanceOf(
+                address(this)
+            );
             if (baltoken1 > 0) {
                 IERC20(_ToSolidlyPoolToken1).safeTransfer(
                     msg.sender,
@@ -315,14 +317,20 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         bytes memory swapData
     ) internal returns (uint256 amountBought, address intermediateToken) {
         if (_swapTarget == wethTokenAddress) {
-            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
-            IWETH(wethTokenAddress).deposit{ value: _amount }();
+            require(
+                _amount > 0 && msg.value == _amount,
+                "Invalid _amount: Input ETH mismatch"
+            );
+            IWETH(wethTokenAddress).deposit{value: _amount}();
             return (_amount, wethTokenAddress);
         }
 
         uint256 valueToSend;
         if (_fromTokenAddress == address(0)) {
-            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
+            require(
+                _amount > 0 && msg.value == _amount,
+                "Invalid _amount: Input ETH mismatch"
+            );
             valueToSend = _amount;
         } else {
             _approveToken(_fromTokenAddress, _swapTarget, _amount);
@@ -354,7 +362,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         require(amountBought > 0, "Swapped to Invalid Intermediate");
     }
 
-     function _swapIntermediate(
+    function _swapIntermediate(
         address _toContractAddress,
         address _ToUnipoolToken0,
         address _ToUnipoolToken1,
@@ -366,7 +374,11 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
             IBaseV1Router01(_solidlyRouter).factory()
         );
 
-        address pairAddress = solidlyFactory.getPair(_ToUnipoolToken0, _ToUnipoolToken1, _stable);
+        address pairAddress = solidlyFactory.getPair(
+            _ToUnipoolToken0,
+            _ToUnipoolToken1,
+            _stable
+        );
 
         (uint256 res0, uint256 res1, ) = IBaseV1Pair(pairAddress).getReserves();
 
@@ -439,16 +451,19 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         require(pair != address(0), "No Swap Available");
 
         IBaseV1Router01.route[] memory path = new IBaseV1Router01.route[](1);
-        path[0] = IBaseV1Router01.route(_FromTokenContractAddress, _ToTokenContractAddress, _stable);
+        path[0] = IBaseV1Router01.route(
+            _FromTokenContractAddress,
+            _ToTokenContractAddress,
+            _stable
+        );
 
-        tokenBought = IBaseV1Router01(_solidlyRouter)
-            .swapExactTokensForTokens(
-                tokens2Trade,
-                1,
-                path,
-                address(this),
-                deadline
-            )[path.length];
+        tokenBought = IBaseV1Router01(_solidlyRouter).swapExactTokensForTokens(
+            tokens2Trade,
+            1,
+            path,
+            address(this),
+            deadline
+        )[path.length];
 
         require(tokenBought > 0, "Error Swapping Tokens 2");
     }

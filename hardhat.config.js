@@ -69,28 +69,6 @@ module.exports = {
       gasPrice: "auto",
       gas: 2500000,
     },
-    local: {
-      url: `http://localhost:8545`,
-      accounts: {
-        mnemonic: process.env.MNEMONIC,
-      },
-    },
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-      accounts: [`0x${process.env.PRIVATE_KEY}`],
-    },
-    matic: {
-      url: "https://polygon-rpc.com/",
-      accounts: [`0x${process.env.PRIVATE_KEY}`],
-    },
-    arbitrum: {
-      url: `https://arb1.arbitrum.io/rpc/`,
-      accounts: [`0x${process.env.PRIVATE_KEY}`],
-    },
-    metis: {
-      url: `https://andromeda.metis.io/?owner=1088`,
-      accounts: [`0x${process.env.PRIVATE_KEY}`],
-    },
   },
   contractSizer: {
     alphaSort: true,

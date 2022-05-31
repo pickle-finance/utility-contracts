@@ -1,6 +1,6 @@
 ///@author Pickle
 ///@notice This contract adds liquidity to Uniswap V2 pools using ETH or any ERC20 Token and then adds this lp token to desired jar in a single txn.
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: AGPL-3.0
 
 pragma solidity ^0.8.0;
 
@@ -93,8 +93,7 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
 
     address public wethTokenAddress;
 
-    constructor(address[] memory targets, address wnative)
-    {
+    constructor(address[] memory targets, address wnative) {
         for (uint256 i = 0; i < targets.length; i++) {
             approvedTargets[targets[i]] = true;
         }
@@ -306,14 +305,20 @@ contract Pickle_UniV2_ZapIn_V1 is ZapBaseV2 {
         bytes memory swapData
     ) internal returns (uint256 amountBought, address intermediateToken) {
         if (_swapTarget == wethTokenAddress) {
-            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
-            IWETH(wethTokenAddress).deposit{ value: _amount }();
+            require(
+                _amount > 0 && msg.value == _amount,
+                "Invalid _amount: Input ETH mismatch"
+            );
+            IWETH(wethTokenAddress).deposit{value: _amount}();
             return (_amount, wethTokenAddress);
         }
 
         uint256 valueToSend;
         if (_fromTokenAddress == address(0)) {
-            require(_amount > 0 && msg.value == _amount, "Invalid _amount: Input ETH mismatch");
+            require(
+                _amount > 0 && msg.value == _amount,
+                "Invalid _amount: Input ETH mismatch"
+            );
             valueToSend = _amount;
         } else {
             _approveToken(_fromTokenAddress, _swapTarget, _amount);
